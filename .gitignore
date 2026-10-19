@@ -1,0 +1,61 @@
+# ==============================================================================
+# DMusic Mobile (Flutter App) - Git Ignore Configuration
+# Keep repository lean: exclude build caches, local SDK paths, binaries, and audit logs.
+# ==============================================================================
+
+# --- Flutter / Dart Build & Dependency Artifacts ---
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+/coverage/
+
+# --- Android Build & Machine-specific Properties ---
+android/.gradle/
+android/.kotlin/
+android/local.properties
+android/app/build/
+android/app/debug/
+android/app/profile/
+android/app/release/
+
+# --- Binary Packages, Archives & Keystores ---
+android.zip
+*.apk
+*.aab
+*.keystore
+*.jks
+build_apk.bat
+
+# --- Local Outputs & Cache ---
+musicdl_outputs/
+.audit-backup/
+.workbuddy/
+
+# --- Internal Audit & Milestone Notes (Kept locally) ---
+*AUDIT*.md
+*audit*.md
+*DEFERRED*.md
+*HANDOVER*.md
+*IMPLEMENTATION*.md
+*RELEASE_CHECK*.md
+*TEST_GUIDE*.md
+*VERSION_COMPARISON*.md
+dmusic_android.md
+
+# --- IntelliJ / Android Studio / VS Code ---
+*.iml
+*.ipr
+*.iws
+.idea/
+.vscode/
+
+# --- Miscellaneous & OS ---
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+Thumbs.db

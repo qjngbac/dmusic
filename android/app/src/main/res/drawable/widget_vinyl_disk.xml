@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="120dp"
+    android:height="120dp"
+    android:viewportWidth="120"
+    android:viewportHeight="120">
+    <!-- Outer Vinyl Body -->
+    <path
+        android:fillColor="#0D1117"
+        android:strokeColor="#1F2937"
+        android:strokeWidth="1"
+        android:pathData="M60,60m-58,0a58,58 0,1,1 116,0a58,58 0,1,1 -116,0" />
+    <!-- Concentric Grooves (同心声学纹路) -->
+    <path
+        android:strokeColor="#22FFFFFF"
+        android:strokeWidth="1.2"
+        android:pathData="M60,60m-52,0a52,52 0,1,1 104,0a52,52 0,1,1 -104,0" />
+    <path
+        android:strokeColor="#15FFFFFF"
+        android:strokeWidth="1"
+        android:pathData="M60,60m-46,0a46,46 0,1,1 92,0a46,46 0,1,1 -92,0" />
+    <path
+        android:strokeColor="#26FFFFFF"
+        android:strokeWidth="1.2"
+        android:pathData="M60,60m-40,0a40,40 0,1,1 80,0a40,40 0,1,1 -80,0" />
+    <path
+        android:strokeColor="#18FFFFFF"
+        android:strokeWidth="1"
+        android:pathData="M60,60m-34,0a34,34 0,1,1 68,0a34,34 0,1,1 -68,0" />
+    <path
+        android:strokeColor="#22FFFFFF"
+        android:strokeWidth="1.2"
+        android:pathData="M60,60m-28,0a28,28 0,1,1 56,0a28,28 0,1,1 -56,0" />
+    <!-- Center Label Ring -->
+    <path
+        android:fillColor="#1E293B"
+        android:strokeColor="#6366F1"
+        android:strokeWidth="1.5"
+        android:pathData="M60,60m-20,0a20,20 0,1,1 40,0a20,20 0,1,1 -40,0" />
+    <!-- Center Spindle Hole -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M60,60m-5,0a5,5 0,1,1 10,0a5,5 0,1,1 -10,0" />
+</vector>

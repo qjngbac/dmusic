@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_bg"
+    android:padding="12dp">
+
+    <!-- 左半侧：黑胶唱机与发烧封面 -->
+    <FrameLayout
+        android:id="@+id/widget_vinyl_container"
+        android:layout_width="100dp"
+        android:layout_height="match_parent"
+        android:layout_alignParentStart="true"
+        android:layout_centerVertical="true">
+
+        <!-- 黑胶唱盘底座（同心声学纹路） -->
+        <ImageView
+            android:id="@+id/widget_vinyl_disk"
+            android:layout_width="96dp"
+            android:layout_height="96dp"
+            android:layout_gravity="center"
+            android:src="@drawable/widget_vinyl_disk"
+            android:contentDescription="Vinyl Disk" />
+
+        <!-- 唱片中心封面 -->
+        <ImageView
+            android:id="@+id/widget_cover_image"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_gravity="center"
+            android:scaleType="centerCrop"
+            android:src="@mipmap/ic_launcher"
+            android:contentDescription="Album Cover" />
+
+        <!-- 左上角音质规格徽章 -->
+        <TextView
+            android:id="@+id/widget_quality_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top|start"
+            android:background="@drawable/widget_badge_bg"
+            android:paddingHorizontal="4dp"
+            android:paddingVertical="1dp"
+            android:text="FLAC 无损"
+            android:textColor="#C7D2FE"
+            android:textSize="8.5sp"
+            android:textStyle="bold" />
+    </FrameLayout>
+
+    <!-- 右半侧：歌曲信息与控制排 -->
+    <LinearLayout
+        android:id="@+id/widget_info_container"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_toEndOf="@id/widget_vinyl_container"
+        android:layout_marginStart="10dp"
+        android:orientation="vertical"
+        android:gravity="center_vertical">
+
+        <!-- 第一行：歌名与歌手 -->
+        <TextView
+            android:id="@+id/widget_song_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="DMusic 发烧播放器"
+            android:textColor="#FFFFFFFF"
+            android:textSize="14.5sp"
+            android:textStyle="bold"
+            android:maxLines="1"
+            android:ellipsize="end" />
+
+        <TextView
+            android:id="@+id/widget_artist_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="点击开启好音乐"
+            android:textColor="#99FFFFFF"
+            android:textSize="11sp"
+            android:maxLines="1"
+            android:ellipsize="end" />
+
+        <!-- 第二行：进度条时间与歌词 -->
+        <TextView
+            android:id="@+id/widget_progress_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="00:00 / 00:00"
+            android:textColor="#818CF8"
+            android:textSize="10.5sp"
+            android:maxLines="1"
+            android:ellipsize="end" />
+
+        <!-- 第三行：全功能控制排 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <!-- 循环模式切换 -->
+            <ImageButton
+                android:id="@+id/widget_btn_mode"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_widget_loop_list"
+                android:contentDescription="Play Mode" />
+
+            <!-- 上一首 -->
+            <ImageButton
+                android:id="@+id/widget_btn_prev"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:layout_marginStart="4dp"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_widget_prev"
+                android:contentDescription="Previous" />
+
+            <!-- 主播放/暂停 -->
+            <ImageButton
+                android:id="@+id/widget_btn_play_pause"
+                android:layout_width="34dp"
+                android:layout_height="34dp"
+                android:layout_marginStart="6dp"
+                android:background="@drawable/widget_btn_circle"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_widget_play"
+                android:contentDescription="Play / Pause" />
+
+            <!-- 下一首 -->
+            <ImageButton
+                android:id="@+id/widget_btn_next"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:layout_marginStart="6dp"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_widget_next"
+                android:contentDescription="Next" />
+
+            <!-- 红心收藏 -->
+            <ImageButton
+                android:id="@+id/widget_btn_favorite"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:layout_marginStart="4dp"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_widget_heart_empty"
+                android:contentDescription="Favorite" />
+
+        </LinearLayout>
+    </LinearLayout>
+
+</RelativeLayout>
