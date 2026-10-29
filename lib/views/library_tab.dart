@@ -1492,7 +1492,7 @@ class LibraryTabState extends State<LibraryTab> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
-                              song.quality,
+                              song.displayQuality,
                               style: TextStyle(
                                 color: song.isLossless ? const Color(0xFFFBBF24) : const Color(0xFF22D3EE),
                                 fontSize: 9.5,
@@ -2312,7 +2312,7 @@ class LibraryTabState extends State<LibraryTab> {
                                         borderRadius: BorderRadius.circular(3),
                                       ),
                                       child: Text(
-                                        song.quality,
+                                        song.displayQuality,
                                         style: TextStyle(
                                           color: song.isLossless ? const Color(0xFFFBBF24) : const Color(0xFF22D3EE),
                                           fontSize: 9.5,
@@ -2913,12 +2913,21 @@ class LibraryTabState extends State<LibraryTab> {
                       title: '暂无歌单合集',
                       desc: '您可以将不同来源专栏合集（如车载DJ、纯音乐、通勤等）以独立合集分类管理，同一个合集内歌曲将独立连续播放。',
                     )
-                  : ListView.builder(
+                  : ReorderableListView.builder(
                       padding: const EdgeInsets.only(bottom: 140),
+                      buildDefaultDragHandles: false,
                       itemCount: playlists.length,
+                      // ignore: deprecated_member_use
+                      onReorder: (oldIndex, newIndex) {
+                        _db.reorderPlaylists(oldIndex, newIndex);
+                      },
                       itemBuilder: (context, index) {
                         final pl = playlists[index];
-                        return _buildPlaylistCard(pl);
+                        return ReorderableDelayedDragStartListener(
+                          key: ValueKey(pl.id),
+                          index: index,
+                          child: _buildPlaylistCard(pl),
+                        );
                       },
                     ),
             ),
@@ -3018,7 +3027,7 @@ class LibraryTabState extends State<LibraryTab> {
                             : () {
                                 _player.setPlayMode(PlayMode.shuffle);
                                 final randIdx = Random().nextInt(pl.songs.length);
-                                _player.setPlaylist(pl.songs, startIndex: randIdx);
+                                _player.setPlaylist(pl.songs, startIndex: randIdx, playlistId: pl.id);
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(content: Text('已开始随机播放“${pl.name}”合集 (共${pl.songs.length}首)')),
                                 );
@@ -3034,7 +3043,7 @@ class LibraryTabState extends State<LibraryTab> {
                             ? null
                             : () {
                                 _player.setPlayMode(PlayMode.listLoop);
-                                _player.setPlaylist(pl.songs, startIndex: 0);
+                                _player.setPlaylist(pl.songs, startIndex: 0, playlistId: pl.id);
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(content: Text('已开始顺序播放“${pl.name}”合集 (共${pl.songs.length}首)')),
                                 );
@@ -3277,7 +3286,7 @@ class LibraryTabState extends State<LibraryTab> {
                                       Navigator.pop(ctx);
                                       _player.setPlayMode(PlayMode.shuffle);
                                       final rand = Random().nextInt(curList.songs.length);
-                                      _player.setPlaylist(curList.songs, startIndex: rand);
+                                      _player.setPlaylist(curList.songs, startIndex: rand, playlistId: curList.id);
                                       ScaffoldMessenger.of(context).showSnackBar(
                                         SnackBar(content: Text('已在【${curList.name}】中开启独立随机播放')),
                                       );
@@ -3296,7 +3305,7 @@ class LibraryTabState extends State<LibraryTab> {
                                     onPressed: () {
                                       Navigator.pop(ctx);
                                       _player.setPlayMode(PlayMode.listLoop);
-                                      _player.setPlaylist(curList.songs, startIndex: 0);
+                                      _player.setPlaylist(curList.songs, startIndex: 0, playlistId: curList.id);
                                       ScaffoldMessenger.of(context).showSnackBar(
                                         SnackBar(content: Text('已在【${curList.name}】中开启独立列表播放')),
                                       );
@@ -3446,118 +3455,149 @@ class LibraryTabState extends State<LibraryTab> {
                                     itemCount: curList.songs.length,
                                     itemBuilder: (context, idx) {
                                       final song = curList.songs[idx];
-                                       final isSelected = selectedSongKeys.contains(song.key);
-                                      return Container(
-                                        margin: const EdgeInsets.symmetric(vertical: 2),
-                                        decoration: BoxDecoration(
-                                          color: isSelected ? const Color(0x336366F1) : Colors.transparent,
-                                          borderRadius: BorderRadius.circular(8),
-                                          border: Border.all(color: isSelected ? const Color(0xFF6366F1) : Colors.transparent),
-                                        ),
-                                        child: Material(
-                                          color: Colors.transparent,
-                                          borderRadius: BorderRadius.circular(8),
-                                          child: ListTile(
-                                          contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                                          leading: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              if (isSelecting)
-                                                Checkbox(
-                                                  value: isSelected,
-                                                  activeColor: const Color(0xFF6366F1),
-                                                  onChanged: (val) {
-                                                    setSheetState(() {
-                                                      if (val == true) {
-                                                        selectedSongKeys.add(song.key);
-                                                      } else {
-                                                        selectedSongKeys.remove(song.key);
-                                                      }
-                                                    });
-                                                  },
-                                                ),
-                                              ClipRRect(
-                                                borderRadius: BorderRadius.circular(6),
-                                                child: Container(
-                                                  width: 40,
-                                                  height: 40,
-                                                  color: const Color(0xFF1E293B),
-                                                  child: song.coverUrl.isNotEmpty
-                                                      ? Image.network(
-                                                          song.coverUrl,
-                                                          fit: BoxFit.cover,
-                                                          errorBuilder: (ctx, err, stack) => const Icon(Icons.music_note, color: Colors.white38),
-                                                        )
-                                                      : const Icon(Icons.music_note, color: Colors.white38),
-                                                ),
+                                      final isSelected = selectedSongKeys.contains(song.key);
+                                      return StreamBuilder<Song?>(
+                                        stream: _player.currentSongStream,
+                                        initialData: _player.currentSong,
+                                        builder: (context, currentSnap) {
+                                          final isPlaying = currentSnap.data != null &&
+                                              (currentSnap.data!.key == song.key ||
+                                                  (currentSnap.data!.id == song.id &&
+                                                      currentSnap.data!.source == song.source));
+
+                                          final cardColor = isSelecting
+                                              ? (isSelected ? const Color(0x336366F1) : const Color(0xFF131A29).withValues(alpha: 0.8))
+                                              : (isPlaying ? const Color(0x286366F1) : const Color(0xFF131A29).withValues(alpha: 0.8));
+
+                                          final borderColor = isSelecting
+                                              ? (isSelected ? const Color(0xFF6366F1) : Colors.white.withValues(alpha: 0.04))
+                                              : (isPlaying ? const Color(0xFF818CF8) : Colors.white.withValues(alpha: 0.04));
+
+                                          final borderWidth = (isSelecting && isSelected) || (!isSelecting && isPlaying) ? 1.5 : 1.0;
+
+                                          return Container(
+                                            margin: const EdgeInsets.symmetric(vertical: 2.5),
+                                            decoration: BoxDecoration(
+                                              color: cardColor,
+                                              borderRadius: BorderRadius.circular(12),
+                                              border: Border.all(
+                                                color: borderColor,
+                                                width: borderWidth,
                                               ),
-                                            ],
-                                          ),
-                                          title: Text(
-                                            song.name,
-                                            style: const TextStyle(color: Colors.white, fontSize: 13.5, fontWeight: FontWeight.w600),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                          subtitle: Text(
-                                            '${song.artist} · ${song.quality}',
-                                            style: const TextStyle(color: Colors.white38, fontSize: 11),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                          onTap: () {
-                                            if (isSelecting) {
-                                              setSheetState(() {
-                                                if (isSelected) {
-                                                  selectedSongKeys.remove(song.key);
-                                                } else {
-                                                  selectedSongKeys.add(song.key);
-                                                }
-                                              });
-                                            } else {
-                                              Navigator.pop(ctx);
-                                              _player.setPlaylist(curList.songs, startIndex: idx);
-                                              ScaffoldMessenger.of(context).showSnackBar(
-                                                SnackBar(
-                                                  content: Text('正在播放【${curList.name}】合集专属队列: ${song.name}'),
-                                                  duration: const Duration(seconds: 1),
-                                                ),
-                                              );
-                                            }
-                                          },
-                                          onLongPress: () {
-                                            if (!isSelecting) {
-                                              setSheetState(() {
-                                                isSelecting = true;
-                                                selectedSongKeys.add(song.key);
-                                              });
-                                            }
-                                          },
-                                          trailing: isSelecting
-                                              ? null
-                                              : Row(
+                                            ),
+                                            child: Material(
+                                              color: Colors.transparent,
+                                              borderRadius: BorderRadius.circular(12),
+                                              child: ListTile(
+                                                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                                leading: Row(
                                                   mainAxisSize: MainAxisSize.min,
                                                   children: [
-                                                    _buildPlaylistDownloadAction(song),
-                                                    IconButton(
-                                                      icon: const Icon(Icons.remove_circle_outline_rounded, color: Colors.redAccent, size: 19),
-                                                      tooltip: '移出合集 (保留在全部歌曲)',
-                                                      onPressed: () async {
-                                                        await _db.removeSongFromPlaylist(curList.id, song.key);
-                                                        if (context.mounted) {
-                                                          ScaffoldMessenger.of(context).showSnackBar(
-                                                            SnackBar(
-                                                              content: Text('已从【${curList.name}】移出 (原歌曲与本地文件仍完好保留在全部歌曲中)'),
-                                                              duration: const Duration(seconds: 2),
-                                                            ),
-                                                          );
-                                                        }
-                                                      },
+                                                    if (isSelecting)
+                                                      Checkbox(
+                                                        value: isSelected,
+                                                        activeColor: const Color(0xFF6366F1),
+                                                        onChanged: (val) {
+                                                          setSheetState(() {
+                                                            if (val == true) {
+                                                              selectedSongKeys.add(song.key);
+                                                            } else {
+                                                              selectedSongKeys.remove(song.key);
+                                                            }
+                                                          });
+                                                        },
+                                                      ),
+                                                    ClipRRect(
+                                                      borderRadius: BorderRadius.circular(8),
+                                                      child: Container(
+                                                        width: 42,
+                                                        height: 42,
+                                                        color: const Color(0xFF1E293B),
+                                                        child: song.coverUrl.isNotEmpty
+                                                            ? Image.network(
+                                                                song.coverUrl,
+                                                                fit: BoxFit.cover,
+                                                                errorBuilder: (ctx, err, stack) => const Icon(Icons.music_note, color: Colors.white38),
+                                                              )
+                                                            : const Icon(Icons.music_note, color: Colors.white38),
+                                                      ),
                                                     ),
                                                   ],
                                                 ),
-                                          ),
-                                        ),
+                                                title: Text(
+                                                  song.name,
+                                                  style: TextStyle(
+                                                    color: isPlaying ? const Color(0xFF818CF8) : Colors.white,
+                                                    fontSize: 13.5,
+                                                    fontWeight: isPlaying ? FontWeight.bold : FontWeight.w600,
+                                                  ),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                                subtitle: Text(
+                                                  '${song.artist} · ${song.quality}',
+                                                  style: TextStyle(
+                                                    color: isPlaying ? const Color(0xFF818CF8).withValues(alpha: 0.8) : Colors.white38,
+                                                    fontSize: 11,
+                                                  ),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                                onTap: () {
+                                                  if (isSelecting) {
+                                                    setSheetState(() {
+                                                      if (isSelected) {
+                                                        selectedSongKeys.remove(song.key);
+                                                      } else {
+                                                        selectedSongKeys.add(song.key);
+                                                      }
+                                                    });
+                                                  } else {
+                                                    Navigator.pop(ctx);
+                                                    _player.setPlaylist(curList.songs, startIndex: idx, playlistId: curList.id);
+                                                    ScaffoldMessenger.of(context).showSnackBar(
+                                                      SnackBar(
+                                                        content: Text('正在播放【${curList.name}】合集专属队列: ${song.name}'),
+                                                        duration: const Duration(seconds: 1),
+                                                      ),
+                                                    );
+                                                  }
+                                                },
+                                                onLongPress: () {
+                                                  if (!isSelecting) {
+                                                    setSheetState(() {
+                                                      isSelecting = true;
+                                                      selectedSongKeys.add(song.key);
+                                                    });
+                                                  }
+                                                },
+                                                trailing: isSelecting
+                                                    ? null
+                                                    : Row(
+                                                        mainAxisSize: MainAxisSize.min,
+                                                        children: [
+                                                          _buildPlaylistDownloadAction(song),
+                                                          IconButton(
+                                                            icon: const Icon(Icons.remove_circle_outline_rounded, color: Colors.redAccent, size: 19),
+                                                            tooltip: '移出合集 (保留在全部歌曲)',
+                                                            onPressed: () async {
+                                                              await _db.removeSongFromPlaylist(curList.id, song.key);
+                                                              if (context.mounted) {
+                                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                                  SnackBar(
+                                                                    content: Text('已从【${curList.name}】移出 (原歌曲与本地文件仍完好保留在全部歌曲中)'),
+                                                                    duration: const Duration(seconds: 2),
+                                                                  ),
+                                                                );
+                                                              }
+                                                            },
+                                                          ),
+                                                        ],
+                                                      ),
+                                              ),
+                                            ),
+                                          );
+                                        },
                                       );
                                     },
                                   ),

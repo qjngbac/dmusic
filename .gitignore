@@ -43,7 +43,10 @@ musicdl_outputs/
 *RELEASE_CHECK*.md
 *TEST_GUIDE*.md
 *VERSION_COMPARISON*.md
+*SERVICE_OWNED_PLAYBACK*.md
+*WIDGET_EXIT_FIX*.md
 dmusic_android.md
+/docs/superpowers/
 
 # --- IntelliJ / Android Studio / VS Code ---
 *.iml

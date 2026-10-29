@@ -35,6 +35,9 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+    }
 }
 
 kotlin {
@@ -47,6 +50,13 @@ flutter {
     source = "../.."
 }
 
+// AGP's resource-backed unit test package also consumes Flutter's copied assets.
+tasks.matching { it.name == "packageDebugUnitTestForUnitTest" }.configureEach {
+    dependsOn("copyFlutterAssetsDebug")
+}
+
 dependencies {
     implementation("androidx.media:media:1.7.0")
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.robolectric:robolectric:4.16.1")
 }

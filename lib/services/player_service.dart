@@ -25,6 +25,7 @@ enum PlayMode {
   listLoop, // 列表循环
   singleLoop, // 单曲循环
   shuffle, // 随机播放
+  sequentialPlaylists, // 歌单顺序播放
 }
 
 class PlayerService {
@@ -88,6 +89,8 @@ class PlayerService {
         return '单曲循环';
       case PlayMode.shuffle:
         return '随机播放';
+      case PlayMode.sequentialPlaylists:
+        return '歌单顺序播放';
     }
   }
 
@@ -106,6 +109,17 @@ class PlayerService {
   Stream<Duration> get durationStream => _durationController.stream;
   Stream<Song?> get currentSongStream => _songController.stream;
   Stream<String> get errorStream => _errorController.stream;
+
+  final _transitioningController = StreamController<bool>.broadcast();
+  Stream<bool> get transitioningStream => _transitioningController.stream;
+  DateTime? _lastToggleTime;
+  String? _currentCustomPlaylistId;
+  String? get currentCustomPlaylistId => _currentCustomPlaylistId;
+
+  void _setTransitioning(bool value) {
+    _isTransitioning = value;
+    _transitioningController.add(value);
+  }
 
   Song? get currentSong => _currentSong;
   bool _isTransitioning = false;
@@ -313,6 +327,9 @@ class PlayerService {
         _playMode = PlayMode.shuffle;
         break;
       case PlayMode.shuffle:
+        _playMode = PlayMode.sequentialPlaylists;
+        break;
+      case PlayMode.sequentialPlaylists:
         _playMode = PlayMode.listLoop;
         break;
     }
@@ -406,7 +423,7 @@ class PlayerService {
 
     if (isCurrentDeleted) {
       _cancelStallWatchdog();
-      _isTransitioning = false;
+      _setTransitioning(false);
       _playSessionId++;
       await _stopSource();
       // 等待底层音频驱动完全释放文件句柄，防止 Windows/Android 文件被占用报错 (M8-2)
@@ -522,7 +539,7 @@ class PlayerService {
       _player.onPlayerStateChanged.listen((state) {
         if (state == PlayerState.playing) {
           _consecutiveErrors = 0;
-          _isTransitioning = false;
+          _setTransitioning(false);
         }
         _stateController.add(state);
       }),
@@ -790,9 +807,10 @@ class PlayerService {
     }
   }
 
-  void setPlaylist(List<Song> list, {int startIndex = 0}) {
+  void setPlaylist(List<Song> list, {int startIndex = 0, String? playlistId}) {
     _playlist = List.from(list);
     _shuffleHistory.clear();
+    _currentCustomPlaylistId = playlistId;
     _notifyPlaylist();
     if (_playlist.isEmpty) {
       _currentIndex = -1;
@@ -900,7 +918,7 @@ class PlayerService {
 
   void _handlePlayError(Song song, String reason) {
     _cancelStallWatchdog();
-    _isTransitioning = false;
+    _setTransitioning(false);
     _consecutiveErrors++;
     _errorController.add('《${song.name}》$reason');
     if (_consecutiveErrors < min(5, _playlist.length) && _playlist.length > 1) {
@@ -914,7 +932,7 @@ class PlayerService {
   Future<void> playSong(Song song, {Duration? initialPosition}) async {
     final int sessionId = ++_playSessionId;
     _qualitySwitchInProgress = false;
-    _isTransitioning = true;
+    _setTransitioning(true);
     _cancelStallWatchdog();
     _isRestoredSession = false;
     _pendingSeekPosition =
@@ -942,7 +960,7 @@ class PlayerService {
               playableSong = song.copyWith(
                 localFilePath: match.matchedSong!.localFilePath,
                 lrcPath: match.matchedSong!.lrcPath,
-                quality: info.qualityLabel,
+                quality: Song.cleanQuality(info.qualityLabel.isNotEmpty ? info.qualityLabel : song.quality),
                 isLossless: info.isLossless,
                 fileSizeBytes: info.fileSizeBytes,
               );
@@ -961,7 +979,7 @@ class PlayerService {
           if (info.isValid && info.matchesDuration(playableSong.durationSeconds)) {
             localAudioInfo = info;
             playableSong = playableSong.copyWith(
-              quality: info.qualityLabel,
+              quality: Song.cleanQuality(info.qualityLabel.isNotEmpty ? info.qualityLabel : playableSong.quality),
               isLossless: info.isLossless,
               fileSizeBytes: info.fileSizeBytes,
             );
@@ -1039,7 +1057,7 @@ class PlayerService {
           if (_playbackRate != 1.0) {
             await _player.setPlaybackRate(_playbackRate);
           }
-          _isTransitioning = false;
+          _setTransitioning(false);
           _fadeVolume(
             from: 0.0,
             to: 1.0,
@@ -1064,7 +1082,7 @@ class PlayerService {
           playableSong.source == '本地扫描' ||
           playableSong.source == '本地转换') {
         if (sessionId != _playSessionId) return;
-        _isTransitioning = false;
+        _setTransitioning(false);
         _handlePlayError(playableSong, '本地音频文件不存在或已损坏');
         return;
       }
@@ -1102,7 +1120,7 @@ class PlayerService {
           _notifyPlaylist();
           _startStallWatchdog(playableSong);
           if (_playbackRate != 1.0) await _player.setPlaybackRate(_playbackRate);
-          _isTransitioning = false;
+          _setTransitioning(false);
           _fadeVolume(from: 0.0, to: 1.0,
               duration: const Duration(milliseconds: 250));
           _scheduleSavePlaybackState(force: true);
@@ -1134,7 +1152,7 @@ class PlayerService {
 
       if (url == null || url.isEmpty) {
         if (sessionId != _playSessionId) return;
-        _isTransitioning = false;
+        _setTransitioning(false);
         _handlePlayError(playableSong, '无法获取可播放音频直链');
         return;
       }
@@ -1157,7 +1175,7 @@ class PlayerService {
           to: 1.0,
           duration: const Duration(milliseconds: 250),
         );
-        _isTransitioning = false;
+        _setTransitioning(false);
         if (_pendingSeekPosition != null && _currentDuration > Duration.zero) {
           final seekTo = _pendingSeekPosition!;
           _pendingSeekPosition = null;
@@ -1197,7 +1215,7 @@ class PlayerService {
               to: 1.0,
               duration: const Duration(milliseconds: 250),
             );
-            _isTransitioning = false;
+            _setTransitioning(false);
             if (_pendingSeekPosition != null &&
                 _currentDuration > Duration.zero) {
               final seekTo = _pendingSeekPosition!;
@@ -1239,7 +1257,7 @@ class PlayerService {
               to: 1.0,
               duration: const Duration(milliseconds: 250),
             );
-            _isTransitioning = false;
+            _setTransitioning(false);
             if (_pendingSeekPosition != null &&
                 _currentDuration > Duration.zero) {
               final seekTo = _pendingSeekPosition!;
@@ -1256,13 +1274,13 @@ class PlayerService {
         } catch (_) {}
 
         if (sessionId == _playSessionId) {
-          _isTransitioning = false;
+          _setTransitioning(false);
           _handlePlayError(song, '网络流解码失败');
         }
       }
     } catch (_) {
       if (sessionId == _playSessionId) {
-        _isTransitioning = false;
+        _setTransitioning(false);
         _handlePlayError(song, '播放器异常');
       }
     }
@@ -1382,6 +1400,15 @@ class PlayerService {
   }
 
   Future<void> togglePlay() async {
+    final now = DateTime.now();
+    if (_lastToggleTime != null &&
+        now.difference(_lastToggleTime!) < const Duration(milliseconds: 500)) {
+      return; // 500ms 快速点击防抖
+    }
+    _lastToggleTime = now;
+    if (_isTransitioning) {
+      return; // 缓冲加载中，防重复打断
+    }
     if (_player.state == PlayerState.playing) {
       await pause();
     } else {
@@ -1396,7 +1423,7 @@ class PlayerService {
     final session = ++_playSessionId;
     _qualitySwitchInProgress = false;
     _cancelStallWatchdog();
-    _isTransitioning = false;
+    _setTransitioning(false);
     if (_player.state == PlayerState.playing) {
       await _fadeVolume(
         from: 1.0,
@@ -1444,7 +1471,7 @@ class PlayerService {
     final session = ++_playSessionId;
     _qualitySwitchInProgress = false;
     _cancelStallWatchdog();
-    _isTransitioning = false;
+    _setTransitioning(false);
     await _stopSource(sessionId: session);
     if (session != _playSessionId) return;
     _currentSong = null;
@@ -1492,10 +1519,20 @@ class PlayerService {
   void playNext() {
     if (_playlist.isEmpty) return;
     if (_playlist.length == 1) {
+      if (_playMode == PlayMode.sequentialPlaylists && _advanceToNextSequentialPlaylist()) {
+        return;
+      }
       playSong(_playlist[0]);
       return;
     }
-    if (_playMode == PlayMode.shuffle) {
+    if (_playMode == PlayMode.sequentialPlaylists) {
+      if (_currentIndex >= _playlist.length - 1) {
+        if (_advanceToNextSequentialPlaylist()) {
+          return;
+        }
+      }
+      _currentIndex = (_currentIndex + 1) % _playlist.length;
+    } else if (_playMode == PlayMode.shuffle) {
       if (_currentIndex >= 0 && _currentIndex < _playlist.length) {
         _shuffleHistory.add(_currentIndex);
         if (_shuffleHistory.length > 100) {
@@ -1512,6 +1549,36 @@ class PlayerService {
       _currentIndex = (_currentIndex + 1) % _playlist.length;
     }
     playSong(_playlist[_currentIndex]);
+  }
+
+  /// 跨歌单顺序连播核心接续逻辑：
+  /// 顺延至用户自定义排定顺序的下一个歌单并无缝起播第 1 首歌
+  bool _advanceToNextSequentialPlaylist() {
+    final customPlaylists = DatabaseService().playlists;
+    if (customPlaylists.isEmpty) return false;
+
+    int curIdx = -1;
+    if (_currentCustomPlaylistId != null) {
+      curIdx = customPlaylists.indexWhere((p) => p.id == _currentCustomPlaylistId);
+    }
+    if (curIdx == -1 && _currentSong != null) {
+      curIdx = customPlaylists.indexWhere(
+        (p) => p.songs.any((s) => s.key == _currentSong!.key || s.id == _currentSong!.id),
+      );
+    }
+    if (curIdx == -1) {
+      curIdx = 0;
+    }
+
+    for (int step = 1; step <= customPlaylists.length; step++) {
+      final nextIdx = (curIdx + step) % customPlaylists.length;
+      final candidate = customPlaylists[nextIdx];
+      if (candidate.songs.isNotEmpty) {
+        setPlaylist(candidate.songs, startIndex: 0, playlistId: candidate.id);
+        return true;
+      }
+    }
+    return false;
   }
 
   void playPrev() {
@@ -1574,6 +1641,7 @@ class PlayerService {
         'playlist': _playlist.map((s) => s.toJson()).toList(),
         'currentIndex': _currentIndex,
         'playModeIndex': _playMode.index,
+        'customPlaylistId': _currentCustomPlaylistId,
         'timestamp': DateTime.now().millisecondsSinceEpoch,
       };
       await file.writeAsString(jsonEncode(data), flush: true);
@@ -1619,6 +1687,7 @@ class PlayerService {
         _playMode = PlayMode.values[playModeIdx];
         _playModeController.add(_playMode);
       }
+      _currentCustomPlaylistId = map['customPlaylistId'] as String?;
 
       // 2. 恢复播放队列
       if (restoredPlaylist.isNotEmpty) {
@@ -1668,7 +1737,7 @@ class PlayerService {
     _qualitySwitchInProgress = false;
     _saveDebounceTimer?.cancel();
     _cancelStallWatchdog();
-    _isTransitioning = false;
+    _setTransitioning(false);
     _sleepCountdownTimer?.cancel();
     await _nativeSourceQueue;
     await _player.dispose();
@@ -1690,6 +1759,7 @@ class PlayerService {
       _durationController.close(),
       _songController.close(),
       _errorController.close(),
+      _transitioningController.close(),
     ]);
   }
 }

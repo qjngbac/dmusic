@@ -51,6 +51,27 @@ class Song {
     this.highQualityId,
   });
 
+  static String cleanQuality(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return '';
+    var q = raw.trim();
+    if (q == '音质待检测') return q;
+    // 移除诊断括号如 (未完整校验), (结构异常), (码率未知), (音质未知)
+    q = q.replaceAll(RegExp(r'\s*\(.*?\)\s*'), ' ').trim();
+    if (q.contains('MP4') && (q.contains('视频') || q.contains('容器'))) {
+      return 'AAC 192k';
+    }
+    if (q.contains('码率未知') || q.contains('音质未知')) {
+      q = q.replaceAll('码率未知', '高品质').replaceAll('音质未知', '高品质').trim();
+    }
+    if (q.toLowerCase() == 'flac') return 'FLAC 无损';
+    if (q.toLowerCase() == 'wav') return 'WAV 无损';
+    if (q.toLowerCase() == 'mp3') return '320k 极高';
+    if (q.toLowerCase() == 'aac') return 'AAC 192k';
+    return q;
+  }
+
+  String get displayQuality => cleanQuality(quality);
+
   bool get isDownloaded => localFilePath != null && localFilePath!.isNotEmpty;
 
   String get durationString {
@@ -234,7 +255,7 @@ class Song {
     artist: json['artist']?.toString() ?? '未知歌手',
     album: json['album']?.toString() ?? '',
     source: json['source']?.toString() ?? '网络',
-    quality: json['quality']?.toString() ?? '音质待检测',
+    quality: cleanQuality(json['quality']?.toString() ?? '音质待检测'),
     size: json['size']?.toString() ?? '',
     durationSeconds: _parseInt(json['durationSeconds']) ?? 0,
     coverUrl: json['coverUrl']?.toString() ?? '',

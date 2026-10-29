@@ -1,101 +1,145 @@
-# 📱 DMusic Mobile (Flutter Android App)
+# DMusic Mobile
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Flutter-3.24%2B-02569B?logo=flutter" alt="Flutter">
-  <img src="https://img.shields.io/badge/Dart-3.5%2B-0175C2?logo=dart" alt="Dart">
+  <img src="https://img.shields.io/badge/Release-v1.2.23-blue?logo=android" alt="Release">
+  <img src="https://img.shields.io/badge/Flutter-3.44%2B-02569B?logo=flutter" alt="Flutter">
+  <img src="https://img.shields.io/badge/Dart-3.12.2%2B-0175C2?logo=dart" alt="Dart">
   <img src="https://img.shields.io/badge/Platform-Android%208.0%2B-green?logo=android" alt="Platform">
-  <img src="https://img.shields.io/badge/Architecture-MVVM%20%7C%20Provider-purple" alt="Architecture">
+  <img src="https://img.shields.io/badge/Architecture-ARM64%20(arm64--v8a)-teal" alt="Architecture">
+  <img src="https://img.shields.io/badge/Size-~19.0MiB-orange" alt="Size">
   <img src="https://img.shields.io/badge/License-GPL--3.0-blue?logo=gnu" alt="License">
 </p>
 
-**DMusic Mobile** 是一款基于 Flutter 与 Material 3 现代化设计语言打造的高颜值、高性能移动端音乐聚合试听与无损下载应用。支持全网跨平台多源秒级聚合、同名版本聚合折叠、沉浸式同步滚动歌词、本地离线媒体库及后台常驻播放。
+DMusic Mobile 是一款基于 Flutter 的 Android 音乐聚合试听与无损下载应用。支持多源聚合检索、同名版本折叠、同步滚动歌词、自建歌单拖拽排序、4x2 黑胶桌面小组件、本地媒体库、后台播放以及系统媒体控制。
 
----
+当前版本：**1.2.23+39**（versionName 1.2.23，versionCode 39），仅提供 **ARM64** 安装包。
 
-## ✨ 核心特性
+## 下载与安装
 
-- 🔍 **跨源流式聚合检索**：一键并行聚合检索各大主流音源平台，智能去重，自动优选最高音质规格（FLAC / Hi-Res / 320k）。
-- ⚏ **同名异版折叠聚合（方案 A）**：
-  - 智能收拢原版、Live 现场版、伴奏、翻唱及 DJ 混音版；
-  - **动态提升主卡片**：在折叠列表点击任意子版本试听时，该子版本动态提升为该曲目卡片的主视图进行播放；
-  - 折叠后主卡片始终保持当前选中的版本与播放状态；子版本支持独立播放与下载。
-- 🌪️ **多维条件联动筛选与排序**：
-  - 音源平台标签多选联动；
-  - 音质规格快速筛选（无损 / 320k / 标准）；
-  - **歌手作者自适应固定记忆**：动态识别当前搜索词的高频歌手。若本次搜索包含上次选中的歌手则继续保持选中固定，若不包含则平滑回退为全部；
-  - 歌曲时长筛选与综合排序。
-- 🎤 **沉浸式同步滚动歌词**：三级歌词匹配引擎（音源自带 / 本地 LRC / 联网在线智能检索匹配），支持时间轴毫秒级平滑滚动居中高亮，点击歌词行随意快进定位。
-- ⚡ **本地已有下载状态感知与秒播通道**：自动比对本地曲库与下载记录，明确标注 `已下载` 状态；试听本地已下载曲目时直接秒开，0 流量消耗且支持原生任意拖拽定位。
-- 🎨 **Material 3 磨砂质感界面**：沉浸式底栏迷你播放条、旋转黑胶唱片微动画、手势交互抽屉与桌面小组件支持。
-- 🔄 **离线曲库与格式转换**：内置本地媒体库扫描、本地音频转码与歌单解析功能。
+安装包通过 GitHub Releases 发布，不放入源码仓库：
 
----
-
-## 🚀 编译与构建
-
-### 1. 环境要求
-
-- **Flutter SDK**: `>= 3.24.0`
-- **Dart SDK**: `>= 3.5.0`
-- **Android Studio / Android SDK**: API 34+
-- **JDK**: 17+
-
-### 2. 本地开发与调试
+- Releases：<https://github.com/qjngbac/dmusic/releases>
+- 文件名：`dmusic-v1.2.23.apk`
+- 适用架构：`arm64-v8a`（Android 8.0 及以上）
 
 ```bash
-# 1. 进入项目根目录
-cd dmusic_app
+adb install -r dmusic-v1.2.23.apk
+```
 
-# 2. 获取 Flutter 依赖包
+同一签名版本可直接覆盖安装并保留本地数据；从其他签名版本切换时需要先卸载。
+
+## 核心特性
+
+- **多源聚合检索**：并行检索多个公开音源，去重并优先选择可用音质。
+- **同名异版折叠**：原版、Live、伴奏、翻唱等版本聚合展示，支持单独试听与下载。
+- **筛选与排序**：音源平台、音质、歌手、时长等条件组合筛选。
+- **同步滚动歌词**：音源自带歌词、本地 LRC 与联网检索三级匹配，支持点击歌词跳转。
+- **本地曲库与下载**：SQLite 管理本地歌曲、自建歌单和下载记录，支持断点续传与音频完整性检测。
+- **歌单管理**：长按拖拽排序、置顶、规则排序，以及歌单顺序连播。
+- **后台播放与系统媒体中心**：基于 `audio_service` 管理播放引擎与 MediaSession，通知栏、锁屏和蓝牙控制与播放器状态一致。
+- **4x2 黑胶桌面小组件**：播放/暂停、切歌、播放模式、收藏、进度显示与点击打开播放器。
+
+## 技术栈
+
+- Flutter / Dart，Material 3
+- `audioplayers`：音频解码与播放
+- `audio_service`：后台音频服务、MediaSession 与系统媒体控制
+- `sqflite`：本地曲库、歌单与偏好持久化
+- Kotlin：原生媒体会话观察、桌面小组件、音频焦点与 FlutterEngine 桥接
+- 本地插件 `packages/dmusic_runtime_bridge`：在有界面与无界面引擎中安装原生桥接
+
+## 编译与构建
+
+### 环境要求
+
+- Flutter SDK：`>= 3.44.0`（当前使用 3.44.9）
+- Dart SDK：`>= 3.12.2`（与 `pubspec.yaml` 一致）
+- Android SDK：compileSdk 36，最低运行 Android 8.0（API 24）
+- JDK：17+
+- 目标安装架构：`arm64-v8a`
+
+### 本地运行
+
+```bash
 flutter pub get
-
-# 3. 运行静态代码语法检查
 flutter analyze
-
-# 4. 连接真机或模拟器启动调试
 flutter run
 ```
 
-### 3. 打包发布 APK
+### 构建 Release APK
 
-通过 Flutter 标准命令行构建 Release 安装包：
+仅构建 ARM64，避免默认全架构导致体积明显增大：
+
 ```bash
-flutter build apk --release
+flutter build apk --release --target-platform android-arm64
 ```
-构建产物将输出在 `build/app/outputs/flutter-apk/app-release.apk`。
 
----
+产物路径：
 
-## 🏗️ 项目架构
-
+```text
+build/app/outputs/flutter-apk/app-release.apk
 ```
+
+### 测试
+
+Flutter 针对性测试：
+
+```bash
+flutter test test/widget_service_test.dart test/background_audio_handler_test.dart
+```
+
+Android 原生测试：
+
+```bash
+cd android
+./gradlew :app:testDebugUnitTest -Ptarget-platform=android-arm64
+```
+
+## 项目结构
+
+```text
 lib/
-├── models/                     # 数据模型层
-│   ├── song.dart               # 核心歌曲实体与音质元数据
-│   ├── lyric.dart              # 同步时间轴歌词模型
-│   ├── playlist.dart           # 歌单实体
-│   └── search_preferences.dart # 筛选条件与偏好记忆模型
-├── services/                   # 核心业务服务层 (Provider)
-│   ├── music_api.dart          # 跨平台音源并发聚合接口
-│   ├── player_service.dart     # 音频播放核心控制器 (just_audio / audio_service)
-│   ├── download_service.dart   # 后台断点续传下载引擎
-│   ├── database_service.dart   # SQLite 本地曲库与历史归档持久化
-│   ├── audio_converter_service.dart # 音频转码服务
-│   ├── playback_cache_service.dart  # 预加载与离线缓存
-│   └── widget_service.dart     # 桌面微件状态联动
-├── views/                      # UI 视图与交互组件
-│   ├── player_bottom_sheet.dart# 沉浸式大屏播放器与同步歌词页
-│   ├── download_sheet.dart     # 下载选项与音质选择底栏
-│   ├── converter_tab.dart      # 格式转换中心
-│   ├── library_tab.dart        # 本地媒体库视图
-│   ├── playlist_dialogs.dart   # 歌单创建与导入弹窗
-│   └── song_options_sheet.dart # 歌曲快捷操作菜单
-└── main.dart                   # 应用主入口与全局主题配置
+├── models/                         # 歌曲、歌词、歌单、筛选偏好
+├── services/
+│   ├── music_api.dart              # 多源聚合检索
+│   ├── player_service.dart         # 播放、队列、断点与状态管理
+│   ├── background_audio_handler.dart # audio_service 与 MediaSession 适配
+│   ├── widget_service.dart         # 桌面小组件与原生通道桥接
+│   ├── download_service.dart       # 下载、校验与断点续传
+│   ├── playback_cache_service.dart # 预加载与缓存
+│   ├── audio_converter_service.dart# 音频转码
+│   └── database_service.dart       # SQLite 持久化
+├── views/                          # 播放器、搜索、曲库、下载、转换等界面
+└── main.dart                       # 应用入口与主题
+
+android/app/src/main/kotlin/com/dmusic/app/dmusic_app/
+├── MainActivity.kt                 # 共享引擎的界面入口
+├── DMusicApplication.kt            # 安装原生桥接插件工厂
+├── DMusicEngineBridge.kt           # FlutterEngine 与原生通道
+├── DMusicMediaSessionObserver.kt   # MediaSession 观察与小组件状态
+├── DMusicAudioFocusManager.kt      # 音频焦点与耳机拔出
+├── DMusicWidgetPlaybackState.kt    # 组件状态、租约与系统核验
+├── WidgetPlaybackLease.kt          # 进程/会话/心跳有效期
+└── DMusicAppWidgetProvider.kt      # 4x2 桌面小组件
+
+packages/dmusic_runtime_bridge/      # 本地 Flutter 插件：引擎级原生桥接
 ```
 
----
+## 数据与隐私
 
-## 📄 开源许可证
+- 应用不需要账号，不包含广告 SDK 或统计 SDK。
+- 歌曲、歌单、播放进度、下载记录和设置保存在本机；卸载应用会清除这些数据。
+- 检索、试听、下载和歌词匹配会访问第三方公开网络接口，具体可用性取决于对应服务。
+- 本项目不会上传用户的本地媒体文件。
 
-本项目基于 [GNU General Public License v3.0 (GPL-3.0)](LICENSE) 协议开源。
-仅供个人学习研究与 Flutter 跨平台音频技术交流使用。
+## 已知限制
+
+- 第三方音源可能失效、限流或变更接口，应用会在可用源之间尝试切换，但不能保证所有歌曲始终可播放。
+- 部分定制 Android 系统对后台服务、任务清理和桌面组件的限制较严格，小组件复位时间可能受系统调度影响。
+- 本项目为个人学习与技术交流项目，未针对所有机型、所有 ROM 做完整兼容性验证。
+
+## 许可证
+
+本项目基于 [GNU General Public License v3.0](LICENSE) 开源。
+
+音乐、封面、歌词等内容的版权归原作者及对应平台所有。本项目仅供个人学习研究与技术交流，请勿用于商业用途或侵犯他人权益的场景。

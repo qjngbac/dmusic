@@ -10,6 +10,7 @@ import 'services/player_service.dart';
 import 'services/download_service.dart';
 import 'services/database_service.dart';
 import 'services/widget_service.dart';
+import 'services/background_audio_handler.dart';
 import 'views/player_bottom_sheet.dart';
 import 'views/library_tab.dart';
 import 'views/converter_tab.dart';
@@ -20,8 +21,9 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await DatabaseService().init();
   await DownloadService().init();
+  await initializeBackgroundAudio();
   await PlayerService().restorePlaybackState();
-  WidgetService().init();
+  await WidgetService().init();
   runApp(const DMusicApp());
 }
 
@@ -118,10 +120,10 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.detached ||
+    if (state == AppLifecycleState.detached ||
+        state == AppLifecycleState.paused ||
         state == AppLifecycleState.hidden) {
-      PlayerService().savePlaybackStateNow();
+      unawaited(PlayerService().savePlaybackStateNow());
     }
   }
 
@@ -129,7 +131,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     return PopScope(
       canPop: false,
-      onPopInvokedWithResult: (didPop, result) {
+      onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
 
         // 优先检查当前激活的 Tab 是否消费了返回键（如多选、搜索状态等）
@@ -155,10 +157,13 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
             ),
           );
         } else {
-          PlayerService().savePlaybackStateNow();
-          PlayerService().pause();
-          WidgetService().stopPlaybackService();
-          SystemNavigator.pop();
+          final widgets = WidgetService();
+          final generation = widgets.sessionGeneration;
+          await widgets.prepareForExit();
+          if (!widgets.isCurrentSession(generation)) return;
+          await widgets.stopPlaybackService();
+          if (!widgets.isCurrentSession(generation)) return;
+          await SystemNavigator.pop();
         }
       },
       child: Scaffold(
@@ -3368,25 +3373,45 @@ class _BottomMiniPlayerState extends State<BottomMiniPlayer> with SingleTickerPr
                   ),
                 ),
                 // 3. 播放/暂停
-                StreamBuilder<PlayerState>(
-                  stream: playerService.stateStream,
-                  initialData: playerService.isPlaying ? PlayerState.playing : playerService.playerState,
-                  builder: (context, snap) {
-                    final isPlaying = (snap.data ?? playerService.playerState) == PlayerState.playing;
-                    return Tooltip(
-                      message: isPlaying ? '暂停' : '播放',
-                      child: InkResponse(
-                        onTap: () => playerService.togglePlay(),
-                        radius: 16,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 1, vertical: 6),
-                          child: Icon(
-                            isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                            color: Colors.white,
-                            size: 26,
+                StreamBuilder<bool>(
+                  stream: playerService.transitioningStream,
+                  initialData: playerService.isTransitioning,
+                  builder: (context, transSnap) {
+                    final isBuffering = transSnap.data ?? playerService.isTransitioning;
+                    if (isBuffering) {
+                      return const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 5, vertical: 7),
+                        child: SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF818CF8)),
                           ),
                         ),
-                      ),
+                      );
+                    }
+                    return StreamBuilder<PlayerState>(
+                      stream: playerService.stateStream,
+                      initialData: playerService.isPlaying ? PlayerState.playing : playerService.playerState,
+                      builder: (context, snap) {
+                        final isPlaying = (snap.data ?? playerService.playerState) == PlayerState.playing;
+                        return Tooltip(
+                          message: isPlaying ? '暂停' : '播放',
+                          child: InkResponse(
+                            onTap: () => playerService.togglePlay(),
+                            radius: 16,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 1, vertical: 6),
+                              child: Icon(
+                                isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                                color: Colors.white,
+                                size: 26,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
                     );
                   },
                 ),

@@ -422,7 +422,7 @@ class DatabaseService {
     checkCurrent();
 
     final downloadedSong = song.copyWith(
-      quality: info.qualityLabel,
+      quality: Song.cleanQuality(info.qualityLabel),
       size: info.sizeMb,
       durationSeconds: info.durationSeconds > 0 ? info.durationSeconds : song.durationSeconds,
       isLossless: info.isLossless,
@@ -769,6 +769,21 @@ class DatabaseService {
     _playlistsController.add(List.from(_playlists));
   }
 
+  /// 调整歌单合集排序 (长按拖拽重排并持久化)
+  Future<void> reorderPlaylists(int oldIndex, int newIndex) async {
+    await init();
+    if (oldIndex < 0 || oldIndex >= _playlists.length) return;
+    if (newIndex > oldIndex) {
+      newIndex -= 1;
+    }
+    if (newIndex < 0 || newIndex >= _playlists.length) return;
+    if (oldIndex == newIndex) return;
+    final item = _playlists.removeAt(oldIndex);
+    _playlists.insert(newIndex, item);
+    await _persist();
+    _playlistsController.add(List.from(_playlists));
+  }
+
   /// 批量更新歌单内部歌曲顺序 (按规则排序)
   Future<void> updatePlaylistSongOrder(String playlistId, List<Song> newSongs) async {
     await init();
@@ -965,7 +980,7 @@ class DatabaseService {
                   artist: artist,
                   album: '本地曲库',
                   source: '本地扫描',
-                  quality: info.qualityLabel,
+                  quality: Song.cleanQuality(info.qualityLabel),
                   size: info.sizeMb,
                   fileSizeBytes: info.fileSizeBytes,
                   durationSeconds: info.durationSeconds,

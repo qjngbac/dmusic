@@ -14,6 +14,9 @@ import android.graphics.Paint
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffXfermode
 import android.graphics.Rect
+import android.os.Bundle
+import android.os.SystemClock
+import android.view.View
 import android.widget.RemoteViews
 import java.io.File
 
@@ -29,21 +32,26 @@ class DMusicAppWidgetProvider : AppWidgetProvider() {
         const val ACTION_WIDGET_MODE = "com.dmusic.app.ACTION_TOGGLE_MODE"
         const val ACTION_WIDGET_SEEK = "com.dmusic.app.ACTION_SEEK"
         const val EXTRA_SEEK_POSITION_MS = "seek_position_ms"
+        const val PLAYBACK_INDICATOR_RENEW_MS = 1_000L
+        private const val PLAYBACK_INDICATOR_THROTTLE_MS = 700L
+
+        private var firstPlaybackIndicator = true
+        private var lastIndicatorRenewalElapsed = -PLAYBACK_INDICATOR_THROTTLE_MS
 
         fun dispatchAction(context: Context, action: String) {
-            if (MainActivity.methodChannel != null) {
-                MainActivity.sendWidgetAction(action)
-                return
+            if (DMusicEngineBridge.dispatchAction(action)) return
+            if (action == ACTION_WIDGET_PAUSE) return
+            launchPlayer(context)
+        }
+
+        private fun launchPlayer(context: Context) {
+            try {
+                context.startActivity(Intent(context, MainActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                })
+            } catch (_: Exception) {
+                // The queued control remains available if Android blocks a background launch.
             }
-            val intent = Intent(context, DMusicAppWidgetProvider::class.java)
-            if (action.startsWith("$ACTION_WIDGET_SEEK:")) {
-                val position = action.substringAfter(':').toLongOrNull() ?: return
-                intent.action = ACTION_WIDGET_SEEK
-                intent.putExtra(EXTRA_SEEK_POSITION_MS, position)
-            } else {
-                intent.action = action
-            }
-            context.sendBroadcast(intent)
         }
 
         const val PREF_NAME = "dmusic_widget_pref"
@@ -121,7 +129,8 @@ class DMusicAppWidgetProvider : AppWidgetProvider() {
             quality: String? = null,
             coverPath: String? = null
         ) {
-            val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+            val appContext = context.applicationContext ?: context
+            val prefs = appContext.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
             val editor = prefs.edit()
             val oldTitle = prefs.getString(KEY_TITLE, null)
             val isSongChanged = (title != null && title != oldTitle)
@@ -129,7 +138,7 @@ class DMusicAppWidgetProvider : AppWidgetProvider() {
             title?.let { editor.putString(KEY_TITLE, it) }
             artist?.let { editor.putString(KEY_ARTIST, it) }
             progress?.let { editor.putString(KEY_PROGRESS, it) }
-            isPlaying?.let { editor.putBoolean(KEY_IS_PLAYING, it) }
+            isPlaying?.let { DMusicWidgetPlaybackState.record(editor, it) }
             isFavorite?.let { editor.putBoolean(KEY_IS_FAVORITE, it) }
             playMode?.let { editor.putString(KEY_PLAY_MODE, it) }
             quality?.let { editor.putString(KEY_QUALITY, it) }
@@ -142,25 +151,47 @@ class DMusicAppWidgetProvider : AppWidgetProvider() {
                 cachedCoverPath = null
                 cachedCoverBitmap = null
             }
-            editor.apply()
+            editor.commit()
+            DMusicWidgetPlaybackState.afterPublish(appContext, prefs)
 
-            val appWidgetManager = AppWidgetManager.getInstance(context)
-            val thisWidget = ComponentName(context, DMusicAppWidgetProvider::class.java)
+            val appWidgetManager = AppWidgetManager.getInstance(appContext)
+            val thisWidget = ComponentName(appContext, DMusicAppWidgetProvider::class.java)
             val allWidgetIds = appWidgetManager.getAppWidgetIds(thisWidget)
             if (allWidgetIds.isEmpty()) return
 
             for (widgetId in allWidgetIds) {
-                val views = RemoteViews(context.packageName, R.layout.widget_vinyl_card)
-                buildViews(context, views, prefs)
+                val views = RemoteViews(appContext.packageName, R.layout.widget_vinyl_card)
+                buildViews(appContext, views, prefs)
                 appWidgetManager.updateAppWidget(widgetId, views)
             }
+        }
+
+        fun renewPlaybackIndicator(context: Context) {
+            if (!DMusicWidgetPlaybackState.accepts(DMusicWidgetPlaybackState.generation)) return
+            val now = SystemClock.elapsedRealtime()
+            if (now - lastIndicatorRenewalElapsed < PLAYBACK_INDICATOR_THROTTLE_MS) return
+            val manager = AppWidgetManager.getInstance(context)
+            val ids = manager.getAppWidgetIds(ComponentName(context, DMusicAppWidgetProvider::class.java))
+            if (ids.isEmpty()) return
+            lastIndicatorRenewalElapsed = now
+            firstPlaybackIndicator = !firstPlaybackIndicator
+            val views = RemoteViews(context.packageName, R.layout.widget_vinyl_card)
+            setPlaybackIndicator(views, true)
+            manager.partiallyUpdateAppWidget(ids, views)
+        }
+
+        private fun setPlaybackIndicator(views: RemoteViews, isPlaying: Boolean) {
+            views.setViewVisibility(R.id.widget_playback_indicator_a,
+                if (isPlaying && firstPlaybackIndicator) View.VISIBLE else View.GONE)
+            views.setViewVisibility(R.id.widget_playback_indicator_b,
+                if (isPlaying && !firstPlaybackIndicator) View.VISIBLE else View.GONE)
         }
 
         fun buildViews(context: Context, views: RemoteViews, prefs: SharedPreferences) {
             val title = prefs.getString(KEY_TITLE, "DMusic 发烧播放器") ?: "DMusic 发烧播放器"
             val artist = prefs.getString(KEY_ARTIST, "点击开启好音乐") ?: "点击开启好音乐"
             val progress = prefs.getString(KEY_PROGRESS, "00:00 / 00:00") ?: "00:00 / 00:00"
-            val isPlaying = prefs.getBoolean(KEY_IS_PLAYING, false)
+            val isPlaying = DMusicWidgetPlaybackState.isPlaying(prefs)
             val isFavorite = prefs.getBoolean(KEY_IS_FAVORITE, false)
             val playMode = prefs.getString(KEY_PLAY_MODE, "listLoop") ?: "listLoop"
             val quality = prefs.getString(KEY_QUALITY, "FLAC 无损") ?: "FLAC 无损"
@@ -171,9 +202,8 @@ class DMusicAppWidgetProvider : AppWidgetProvider() {
             views.setTextViewText(R.id.widget_progress_text, progress)
             views.setTextViewText(R.id.widget_quality_badge, quality)
 
-            // 播放/暂停状态图标
-            val playRes = if (isPlaying) R.drawable.ic_widget_pause else R.drawable.ic_widget_play
-            views.setImageViewResource(R.id.widget_btn_play_pause, playRes)
+            views.setImageViewResource(R.id.widget_btn_play_pause, R.drawable.ic_widget_play)
+            setPlaybackIndicator(views, isPlaying)
 
             // 红心收藏状态图标
             val favRes = if (isFavorite) R.drawable.ic_widget_heart_filled else R.drawable.ic_widget_heart_empty
@@ -255,12 +285,22 @@ class DMusicAppWidgetProvider : AppWidgetProvider() {
     }
 
     override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
+        DMusicWidgetPlaybackState.checkPlayback(context)
         val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
         for (widgetId in appWidgetIds) {
             val views = RemoteViews(context.packageName, R.layout.widget_vinyl_card)
             buildViews(context, views, prefs)
             appWidgetManager.updateAppWidget(widgetId, views)
         }
+    }
+
+    override fun onAppWidgetOptionsChanged(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetId: Int,
+        newOptions: Bundle,
+    ) {
+        onUpdate(context, appWidgetManager, intArrayOf(appWidgetId))
     }
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -283,21 +323,12 @@ class DMusicAppWidgetProvider : AppWidgetProvider() {
         }
     }
 
+    override fun onDisabled(context: Context) {
+        DMusicWidgetPlaybackState.widgetRemoved(context)
+        super.onDisabled(context)
+    }
+
     private fun forwardAction(context: Context, action: String) {
-        if (MainActivity.methodChannel != null) {
-            MainActivity.sendWidgetAction(action)
-        } else {
-            // 先将指令加入 MainActivity 的待处理队列，确保冷启动就绪后自动执行
-            MainActivity.sendWidgetAction(action)
-            try {
-                val launchIntent = Intent(context, MainActivity::class.java).apply {
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
-                    putExtra("widget_action", action)
-                }
-                context.startActivity(launchIntent)
-            } catch (_: Exception) {
-                // 在 Android 10+ 熄屏或后台受限时捕获拦截，指令仍保留在队列中避免崩溃
-            }
-        }
+        dispatchAction(context, action)
     }
 }

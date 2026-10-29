@@ -862,7 +862,7 @@ class _PlayerBottomSheetState extends State<PlayerBottomSheet>
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        song.quality,
+                        song.displayQuality,
                         style: TextStyle(
                           color: song.isLossless ? const Color(0xFFFBBF24) : const Color(0xFF38BDF8),
                           fontSize: 10.5,
@@ -1118,6 +1118,7 @@ class _PlayerBottomSheetState extends State<PlayerBottomSheet>
               IconData icon = Icons.repeat_rounded;
               if (mode == PlayMode.singleLoop) icon = Icons.repeat_one_rounded;
               if (mode == PlayMode.shuffle) icon = Icons.shuffle_rounded;
+              if (mode == PlayMode.sequentialPlaylists) icon = Icons.playlist_play_rounded;
 
               return IconButton(
                 icon: Icon(icon, color: Colors.white70, size: 26),
@@ -1138,35 +1139,53 @@ class _PlayerBottomSheetState extends State<PlayerBottomSheet>
             icon: const Icon(Icons.skip_previous_rounded, color: Colors.white, size: 36),
             onPressed: () => _playerService.playPrev(),
           ),
-          StreamBuilder<PlayerState>(
-            stream: _playerService.stateStream,
-            initialData: _playerService.isPlaying ? PlayerState.playing : _playerService.playerState,
-            builder: (context, snap) {
-              final isPlaying = (snap.data ?? _playerService.playerState) == PlayerState.playing;
-              return GestureDetector(
-                onTap: () => _playerService.togglePlay(),
-                child: Container(
-                  width: 64,
-                  height: 64,
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                      colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Color(0x666366F1),
-                        blurRadius: 20,
-                        offset: Offset(0, 4),
+          StreamBuilder<bool>(
+            stream: _playerService.transitioningStream,
+            initialData: _playerService.isTransitioning,
+            builder: (context, transSnap) {
+              final isBuffering = transSnap.data ?? _playerService.isTransitioning;
+              return StreamBuilder<PlayerState>(
+                stream: _playerService.stateStream,
+                initialData: _playerService.isPlaying ? PlayerState.playing : _playerService.playerState,
+                builder: (context, snap) {
+                  final isPlaying = (snap.data ?? _playerService.playerState) == PlayerState.playing;
+                  return GestureDetector(
+                    onTap: isBuffering ? null : () => _playerService.togglePlay(),
+                    child: Container(
+                      width: 64,
+                      height: 64,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Color(0x666366F1),
+                            blurRadius: 20,
+                            offset: Offset(0, 4),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                  child: Icon(
-                    isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                    color: Colors.white,
-                    size: 38,
-                  ),
-                ),
+                      child: isBuffering
+                          ? const Center(
+                              child: SizedBox(
+                                width: 26,
+                                height: 26,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.8,
+                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                ),
+                              ),
+                            )
+                          : Icon(
+                              isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                              color: Colors.white,
+                              size: 38,
+                            ),
+                    ),
+                  );
+                },
               );
             },
           ),
@@ -1626,6 +1645,7 @@ class _PlayerBottomSheetState extends State<PlayerBottomSheet>
                                 IconData icon = Icons.repeat_rounded;
                                 if (mode == PlayMode.singleLoop) icon = Icons.repeat_one_rounded;
                                 if (mode == PlayMode.shuffle) icon = Icons.shuffle_rounded;
+                                if (mode == PlayMode.sequentialPlaylists) icon = Icons.playlist_play_rounded;
                                 return TextButton.icon(
                                   icon: Icon(icon, color: const Color(0xFF818CF8), size: 16),
                                   label: Text(

@@ -123,15 +123,50 @@
                 android:contentDescription="Previous" />
 
             <!-- 主播放/暂停 -->
-            <ImageButton
-                android:id="@+id/widget_btn_play_pause"
+            <FrameLayout
                 android:layout_width="34dp"
                 android:layout_height="34dp"
-                android:layout_marginStart="6dp"
-                android:background="@drawable/widget_btn_circle"
-                android:scaleType="centerInside"
-                android:src="@drawable/ic_widget_play"
-                android:contentDescription="Play / Pause" />
+                android:layout_marginStart="6dp">
+
+                <ImageButton
+                    android:id="@+id/widget_btn_play_pause"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="@drawable/widget_btn_circle"
+                    android:scaleType="centerInside"
+                    android:src="@drawable/ic_widget_play"
+                    android:contentDescription="Play / Pause" />
+
+                <ProgressBar
+                    android:id="@+id/widget_playback_indicator_a"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:padding="5dp"
+                    android:background="@drawable/widget_btn_circle"
+                    android:indeterminate="true"
+                    android:indeterminateOnly="true"
+                    android:indeterminateDrawable="@drawable/widget_playback_expiry"
+                    android:indeterminateTint="@null"
+                    android:importantForAccessibility="no"
+                    android:clickable="false"
+                    android:focusable="false"
+                    android:visibility="gone" />
+
+                <ProgressBar
+                    android:id="@+id/widget_playback_indicator_b"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:padding="5dp"
+                    android:background="@drawable/widget_btn_circle"
+                    android:indeterminate="true"
+                    android:indeterminateOnly="true"
+                    android:indeterminateDrawable="@drawable/widget_playback_expiry"
+                    android:indeterminateTint="@null"
+                    android:importantForAccessibility="no"
+                    android:clickable="false"
+                    android:focusable="false"
+                    android:visibility="gone" />
+            </FrameLayout>
 
             <!-- 下一首 -->
             <ImageButton
