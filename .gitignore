@@ -46,7 +46,12 @@ musicdl_outputs/
 *SERVICE_OWNED_PLAYBACK*.md
 *WIDGET_EXIT_FIX*.md
 dmusic_android.md
-/docs/superpowers/
+
+# --- Local-only documentation and native tests ---
+/docs/
+/CHANGELOG.md
+/android/app/src/test/
+/packages/dmusic_runtime_bridge/android/src/test/
 
 # --- IntelliJ / Android Studio / VS Code ---
 *.iml
